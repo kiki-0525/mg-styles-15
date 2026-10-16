@@ -40,7 +40,7 @@ svg.L{position:absolute;left:0;top:0;overflow:visible}
 #a1t{position:relative}
 #a1t .p+.p{margin-top:14px}
 #a1t .aside{color:#8C91A0}
-.neg{background-image:linear-gradient(transparent 56%,#FFE14D 56%,#FFE14D 94%,transparent 94%);background-repeat:no-repeat;background-size:0% 100%;border-radius:4px}
+.neg{white-space:nowrap;background-image:linear-gradient(transparent 56%,#FFE14D 56%,#FFE14D 94%,transparent 94%);background-repeat:no-repeat;background-size:0% 100%;border-radius:4px}
 .neg.on{color:#E8283C}
 .mask{display:inline-block;width:3.2em;height:1.05em;vertical-align:-.16em;margin:0 2px;border-radius:6px;
   background:repeating-conic-gradient(#6C7080 0 25%,#A9ADBA 0 50%) 0 0/16px 16px}
@@ -58,6 +58,13 @@ svg.L{position:absolute;left:0;top:0;overflow:visible}
 .sticker .av svg{border-radius:24px;box-shadow:0 0 0 8px #fff,0 16px 26px rgba(30,16,60,.3)}
 .sticker .nm{color:#1E2A78;font-weight:700;background:#fff;border-radius:20px;padding:2px 16px;margin-left:0}
 
+#dim{position:absolute;left:0;top:0;width:1080px;height:1920px;background:#150F2C;opacity:0;pointer-events:none}
+/* ---------- end egg: the reviewer AI's note, pinned under the card ---------- */
+#egg{position:absolute;left:0;top:0;transform-origin:0 0;font-family:var(--ui);visibility:hidden}
+#egg .msg{margin:0}
+#egg .bubble{max-width:880px;font-size:40px;line-height:1.55;padding:22px 32px}
+#egg .nm{display:flex;align-items:center;gap:12px}
+#egg .tag{font:700 26px/34px var(--ui);color:#fff;background:#FF3D7F;border-radius:17px;padding:1px 14px}
 #vig{position:absolute;left:0;top:0;width:1080px;height:1920px;pointer-events:none;
   background:radial-gradient(ellipse 85% 64% at 50% 48%, rgba(0,0,0,0) 60%, rgba(22,14,40,.26) 100%)}
 #flash{position:absolute;left:0;top:0;width:1080px;height:1920px;background:#fff;opacity:0}
@@ -104,6 +111,7 @@ svg.L{position:absolute;left:0;top:0;overflow:visible}
           <svg class="send" viewBox="0 0 92 92"><circle cx="46" cy="46" r="46" fill="#C9CCD6"/><path d="M46 66V28M30 43L46 27L62 43" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
+      <div id="dim"></div>
       <div id="hero">
         <svg id="rays" class="L" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
         <div id="heroQ" class="sticker"></div>
@@ -113,6 +121,7 @@ svg.L{position:absolute;left:0;top:0;overflow:visible}
   </div>
   <div id="vig"></div>
   <svg id="fx" class="L" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+  <div id="egg" class="sticker"><div class="msg ai"><div class="av" id="eggav"></div><div class="col"><div class="nm">Ch***pt<span class="tag">审片意见</span></div><div class="bubble" id="eggb"></div></div></div></div>
   <div id="flash"></div>
   <div id="grain"></div>
 </div>
@@ -251,6 +260,9 @@ const DROP_D = 'M0 -64C9 -42 36 -12 36 14A36 36 0 0 1 -36 14C-36 -12 -9 -42 0 -6
 // generic assistant avatar: slate tile, two eyes, small smile (no real product's mark or colours)
 const AVATAR = '<svg width="76" height="76" viewBox="0 0 76 76"><rect width="76" height="76" rx="24" fill="#2B2F3A"/><rect x="20" y="25" width="11" height="19" rx="5.5" fill="#fff"/><rect x="45" y="25" width="11" height="19" rx="5.5" fill="#fff"/><path d="M28 53Q38 59 48 53" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".75"/></svg>';
 
+// the reviewer AI of the end egg: a different generic tile (magnifier), no real product's mark or colours
+const REVIEW_AV = '<svg width="76" height="76" viewBox="0 0 76 76"><rect width="76" height="76" rx="24" fill="#5A4FCF"/><circle cx="33" cy="33" r="14" fill="none" stroke="#fff" stroke-width="6"/><path d="M43 43L56 56" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg>';
+
 /* ---------- copy ---------- */
 // The assistant's reply, streamed. [..] = a counted 不能 (14 of them, in order, one per counter tick), {M} = bleeped brand name.
 const AI_TEXT = [
@@ -272,12 +284,17 @@ const LINES = [
   { runs: ['', '不能', '确认是否重新引入 5 小时限制'], oc: '#16B9F0', ec: '#0F2A6B' },
   { runs: ['', '不能', '保证所有套餐获得相同恢复'], oc: '#8B4CFF', ec: '#3A1780' },
 ];
+// end egg: the reviewer AI's note on the first cut, verbatim; [..] = the nitpick the counter books as 不能 No. 15
+const EGG_TEXT = '“14 个不能”的标签[需要改准]。计数里包含了“不代表”“不包括”“不构成”等表达，建议改为“否定 ×14”，与实际统计一致。';
 const YELLOW = [[0, '#FFFBD6'], [.42, '#FFE23A'], [1, '#FF9A1F']], RED = [[0, '#FF8A8A'], [.5, '#FF1E3C'], [1, '#C4001E']];
 
-let C, fx, rays, bgPat, B = {}, U = [], NEG = [], SC = {}, nAt, revealBottom;
+let C, fx, rays, bgPat, B = {}, U = [], NEG = [], SC = {}, RC = {}, EU = [], nAt, revealBottom;
+// 定格: the recording has its own clock, which stops inside every freeze (stream, scroll, typing dots and handheld drift all
+// read it), while captions, counter and camera keep real time -- frozen footage, living 花字
+const tau = t => { let x = t; for (const [a, b] of C.freezes) x -= clamp(t - a, 0, b - a); return x; };
 
 async function loadFonts() {
-  const sample = AI_TEXT.join('') + LINES.map(l => l.runs.join('')).join('') + '好耶！？第个“不能”时区守门员防御性满分翻译成人话：没结论（小声）哔～震惊所以我额度回来了吗请前往查看某助手在线正在输入…给发消息AI翻车现场DAY0123456789TIMEZONEKEEPERSTILLDEFENSE/';
+  const sample = AI_TEXT.join('') + LINES.map(l => l.runs.join('')).join('') + EGG_TEXT + '审片意见好耶！？第个“不能”时区守门员防御性满分翻译成人话：没结论（小声）哔～震惊所以我额度回来了吗请前往查看某助手在线正在输入…给发消息AI翻车现场DAY0123456789TIMEZONEKEEPERSTILLDEFENSE/';
   for (const [f, w] of [['Resource Han Rounded', 900], ['Alimama ShuHeiTi', 700], ['Douyin Sans', 700], ['LXGW Marker Gothic', 400], ['ZCOOL KuaiLe', 400], ['Luckiest Guy', 400], ['Noto Sans SC', 400], ['Noto Sans SC', 500], ['Noto Sans SC', 600]]) {
     try { await Promise.race([document.fonts.load(`${w} 100px "${f}"`, sample), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
     if (![...document.fonts].some(ff => ff.family.replace(/["']/g, '') === f && ff.status === 'loaded')) console.warn(`font "${f}" not loaded, using the fallback stack (see assets/fonts/README.md)`);
@@ -295,7 +312,7 @@ function buildChat() {
     const unit = (parent, ch) => { const e = document.createElement('span'); e.textContent = ch; parent.appendChild(e); U.push({ el: e, sp: ch === ' ' }); };
     for (let i = 0; i < s.length; i++) {
       if (s[i] === '[') { const j = s.indexOf(']', i), ns = document.createElement('span'); ns.className = 'neg'; p.appendChild(ns);
-        for (const ch of s.slice(i + 1, j)) unit(ns, ch); NEG.push({ el: ns, last: U.length - 1 }); i = j; continue; }
+        const first = U.length; for (const ch of s.slice(i + 1, j)) unit(ns, ch); NEG.push({ el: ns, first, last: U.length - 1 }); i = j; continue; }
       if (s.startsWith('{M}', i)) { const ms = document.createElement('span'); ms.className = 'mask'; p.appendChild(ms); U.push({ el: ms, mask: true }); B.maskU = U.length - 1; i += 2; continue; }
       unit(p, s[i]);
     }
@@ -319,8 +336,10 @@ function buildChat() {
   SC.ty2 = rel($('ty2').querySelector('.bubble')); SC.ty1 = rel($('ty1').querySelector('.bubble'));
   $('ty2').style.display = 'none'; $('a2').style.display = ''; $('ty1').style.display = 'none'; $('a1').style.display = '';
 
-  // reveal map: piecewise-linear unit count through the anchors (each counted 不能 completes on its tick, the bleep on its cue)
-  const A = [[C.stream, 0], ...NEG.map((g, k) => [C.ticks[k], g.last + 1]), [C.beep, B.maskU + 1], [C.stream_end, U.length]].sort((a, b) => a[0] - b[0]);
+  // reveal map on the recording clock: piecewise-linear unit count through the anchors (each counted 不能 completes on its
+  // tick -- the line ticks open a freeze, so the stream halts with that 不能 just landed -- and the bleep on its cue)
+  for (const k of ['send1', 'typing1', 'stream', 'stream_end', 'send2', 'typing2', 'answer']) RC[k] = tau(C[k]);
+  const A = [[RC.stream, 0], ...NEG.map((g, k) => [tau(C.ticks[k]), g.last + 1]), [tau(C.beep), B.maskU + 1], [RC.stream_end, U.length]].sort((a, b) => a[0] - b[0]);
   for (let i = 1; i < A.length; i++) if (A[i][1] < A[i - 1][1]) console.warn('reveal anchors out of order at', A[i]);
   nAt = t => { if (t <= A[0][0]) return 0; if (t >= A[A.length - 1][0]) return U.length;
     let i = 0; while (t > A[i + 1][0]) i++; const [t0, n0] = A[i], [t1, n1] = A[i + 1]; return Math.floor(n0 + (n1 - n0) * (t - t0) / (t1 - t0) + 1e-6); };
@@ -332,7 +351,7 @@ function buildChat() {
     if (!cur || Math.abs(u.t - cur.top) > 4) lines.push({ top: u.t, b, T: unitT(i) }); else cur.b = Math.max(cur.b, b); });
   lines[lines.length - 1].b = SC.full;
   const mono = monotone(lines.map(l => [l.T, l.b]));
-  revealBottom = t => t >= C.stream_end ? SC.full : mono(t);
+  revealBottom = T => T >= RC.stream_end ? SC.full : mono(T);
   // like a real chat the newest message sits at the bottom: history above, each new message scrolls the list up
   SC.s0 = Math.max(0, SC.u1.y + SC.u1.h + 40 - SC.VH);
   SC.sT1 = Math.max(SC.s0, SC.ty1.y + SC.ty1.h + 40 - SC.VH);
@@ -347,43 +366,62 @@ function buildChat() {
   $('heroQ').appendChild(q); $('heroA').appendChild(a);
   B.hq = { w: $('heroQ').offsetWidth, h: $('heroQ').offsetHeight }; B.ha = { w: $('heroA').offsetWidth, h: $('heroA').offsetHeight };
   B.hq.s = 1.08; B.ha.s = Math.min(1.22, 930 / B.ha.w);
+
+  // freeze key frames: the hook punches onto 'Tibo 重置了！', each caption freeze onto the 不能 that just landed in the text,
+  // the last one (时区守门员) onto the whole barrage
+  B.fz = C.freezes.map(([a]) => {
+    if (a < C.drop) return { x: SC.u1.x + SC.u1.w / 2, y: SC.top + SC.u1.y + SC.u1.h / 2 - SC.s0, z: 1.09 };
+    const k = C.ticks.indexOf(a);
+    if (k >= 0) { const f = U[NEG[k].first], u = U[NEG[k].last], s = chatScroll(tau(a)); return { x: SC.txt.x + (f.l + u.l + u.w) / 2, y: SC.top + SC.txt.y + u.t + u.h / 2 - s, z: 1.1 }; }
+    return { x: 540, y: 1300, z: 1.12 };
+  });
+  B.camCuts = [C.drop, ...C.freezes.flat()];
+
+  // end egg: the reviewer's note, typed out per character; its nitpick gets the same marker sweep as the counted 不能
+  $('eggav').innerHTML = REVIEW_AV;
+  const eb = $('eggb'), m = EGG_TEXT.match(/^(.*)\[(.*)\](.*)$/);
+  const add = (parent, str) => { for (const ch of str) { const e = document.createElement('span'); e.textContent = ch; parent.appendChild(e); EU.push(e); } };
+  add(eb, m[1]); B.egNeg = document.createElement('span'); B.egNeg.className = 'neg'; eb.appendChild(B.egNeg); add(B.egNeg, m[2]); add(eb, m[3]);
+  B.eg = { w: $('egg').offsetWidth, h: $('egg').offsetHeight }; B.eg.s = Math.min(1, 960 / B.eg.w);
+  EU.forEach(e => { e.style.visibility = 'hidden'; });
 }
-function bubbleH(t) { return t >= C.stream_end ? SC.a1.h : SC.a1pad + revealBottom(t); }
-function chatScroll(t) {
-  if (t < C.stream) return lerp(SC.s0, SC.sT1, E.outCubic(clamp((t - C.typing1) / .22)));
-  if (t < C.send2) {   // the reply streams in at the bottom and pushes everything up (4-frame blend off the typing bubble)
-    const sb = Math.max(SC.sT1, SC.a1.y + bubbleH(t) + 40 - SC.VH);
-    return lerp(SC.sT1, sb, E.outCubic(clamp((t - C.stream) / (4 * FR))));
+// chat geometry on the recording clock T (pass tau(t)): the bubble grows with the stream, the list scrolls like a messenger
+function bubbleH(T) { return T >= RC.stream_end ? SC.a1.h : SC.a1pad + revealBottom(T); }
+function chatScroll(T) {
+  if (T < RC.stream) return lerp(SC.s0, SC.sT1, E.outCubic(clamp((T - RC.typing1) / .22)));
+  if (T < RC.send2) {   // the reply streams in at the bottom and pushes everything up (4-frame blend off the typing bubble)
+    const sb = Math.max(SC.sT1, SC.a1.y + bubbleH(T) + 40 - SC.VH);
+    return lerp(SC.sT1, sb, E.outCubic(clamp((T - RC.stream) / (4 * FR))));
   }
-  if (t >= C.answer) return lerp(SC.sT, SC.sA, E.outCubic(clamp((t - C.answer) / .2)));
-  if (t >= C.typing2) return lerp(SC.sQ, SC.sT, E.outCubic(clamp((t - C.typing2) / .22)));
-  return lerp(SC.sEnd, SC.sQ, E.outCubic(clamp((t - C.send2) / .25)));
+  if (T >= RC.answer) return lerp(SC.sT, SC.sA, E.outCubic(clamp((T - RC.answer) / .2)));
+  if (T >= RC.typing2) return lerp(SC.sQ, SC.sT, E.outCubic(clamp((T - RC.typing2) / .22)));
+  return lerp(SC.sEnd, SC.sQ, E.outCubic(clamp((T - RC.send2) / .25)));
 }
-/* camera on the recording: slow Ken Burns push + handheld drift; snap punch-ins on the barrage, the 14th 不能 and the answer */
+/* camera on the recording: slow Ken Burns push + handheld drift. Every 定格 is a key frame: the camera snaps (3 frames,
+   outExpo) onto its subject -- the 不能 that just landed, the bubble, the full barrage -- and creeps ~1.2 % through the hold
+   so the still breathes (04-3d-render's end-hold creep); the drift runs on the recording clock, so a freeze is dead still */
 function camBase(t) {
-  if (t < C.drop) {   // hook: slow push, a little bump on 好耶
-    const uy = t - C.yay[0], b = uy < 0 ? 0 : uy < 2 * FR ? E.outQuad(uy / (2 * FR)) : Math.exp(-(uy - 2 * FR) * 5);
-    return { Z: (1.04 + .025 * E.inOutSine(clamp(t / 1.5))) * (1 + .035 * b), px: 540, py: 1350 };
+  const i = C.freezes.findIndex(([a, e]) => t >= a && t < e), tb = i >= 0 ? C.freezes[i][0] : t;   // a freeze holds the pose it opened on
+  let b;
+  if (tb < C.drop) b = { Z: 1.04 + .012 * tb, px: 540, py: 1350 };
+  else if (tb < C.clear) b = { Z: 1.08 + .025 * clamp((tb - C.drop) / (C.clear - C.drop)), px: 540, py: 1380 };
+  else {   // the question: wide again, slow creep toward the bubbles (pivot near the right edge so the user bubble stays in frame); snap punch-in when the answer lands
+    b = { Z: 1.06 + .1 * E.inOutSine(clamp((t - C.send2) / (C.answer - C.send2))), px: 900, py: 1380 };
+    const ua = t - C.answer;
+    if (ua >= 0) { const e = E.outExpo(clamp(ua / (2 * FR))), ax = SC.a2.x + SC.a2.w / 2, ay = SC.top + SC.a2.y + SC.a2.h / 2 - SC.sA;
+      b = { Z: b.Z * lerp(1, 1.14, e), px: lerp(b.px, ax, e), py: lerp(b.py, ay, e) }; }
   }
-  if (t < C.clear) {  // barrage: punch onto the streaming text, creep, second snap on the 14th
-    const u = t - C.drop, um = t - C.max;
-    let Z = 1.11 + .035 * (u / (C.clear - C.drop));
-    if (um >= 0) Z *= lerp(1, 1.1, E.outExpo(clamp(um / (2 * FR)))) * (1 + .03 * Math.exp(-Math.pow((um - 1.6 * FR) / (.9 * FR), 2)));
-    return { Z, px: 540, py: 1380 };
-  }
-  // the question: wide again, slow creep toward the bubbles (pivot near the right edge so the user bubble stays in frame); snap punch-in when the answer lands
-  let Z = 1.06 + .1 * E.inOutSine(clamp((t - C.send2) / (C.answer - C.send2))), px = 900, py = 1380;
-  const ua = t - C.answer;
-  if (ua >= 0) { const e = E.outExpo(clamp(ua / (2 * FR))), ax = SC.a2.x + SC.a2.w / 2, ay = SC.top + SC.a2.y + SC.a2.h / 2 - SC.sA;
-    Z *= lerp(1, 1.14, e); px = lerp(px, ax, e); py = lerp(py, ay, e); }
-  return { Z, px, py };
+  if (i >= 0) { const [a, e] = C.freezes[i], P = B.fz[i]; return { Z: b.Z * P.z * (1 + .012 * (t - a) / (e - a)), px: P.x, py: P.y }; }
+  return b;
 }
+const impacts = t => addK(kick(t, C.freezes[0][0], 4, 11, 13), kick(t, C.drop, 6, 10, 13), ...C.lines.map(l => kick(t, l, 5, 11, 13)),
+  kick(t, C.max, 10, 10, 13), kick(t, C.stamp1, 14, 9, 12), kick(t, C.answer, 8, 12, 14));
 function camAt(t) {
   let c = camBase(t);
-  for (const [tc, n] of [[C.drop, 3], [C.clear, 3]]) {   // snap transitions (3 frames, outExpo) instead of hard jumps
-    const u = t - tc; if (u >= 0 && u < n * FR) { const a = camBase(tc - 1e-4), e = E.outExpo(u / (n * FR)); c = { Z: lerp(a.Z, c.Z, e), px: lerp(a.px, c.px, e), py: lerp(a.py, c.py, e) }; }
+  for (const tc of B.camCuts) {   // snap transitions (3 frames, outExpo) instead of hard jumps
+    const u = t - tc; if (u >= 0 && u < 3 * FR) { const a = camBase(tc - 1e-4), e = E.outExpo(u / (3 * FR)); c = { Z: lerp(a.Z, c.Z, e), px: lerp(a.px, c.px, e), py: lerp(a.py, c.py, e) }; }
   }
-  const h = addK(hand(t, 1, 1), kick(t, C.drop, 6, 10, 13), kick(t, C.max, 10, 10, 13), kick(t, C.stamp1, 14, 9, 12), kick(t, C.answer, 8, 12, 14));
+  const h = addK(hand(tau(t), 1, 1), impacts(t));
   return { ...c, x: h.x, y: h.y, r: h.r };
 }
 function toScreen(cx, cy, cam, s) {   // content coords -> stage coords through the scroll and the camera
@@ -393,6 +431,7 @@ function toScreen(cx, cy, cam, s) {   // content coords -> stage coords through 
 
 async function build() {
   C = await (await fetch('/demos/roast-hanazi/cues.json')).json();
+  window.DEMO.duration = C.duration;   // the harness reads DEMO after __ready
   await loadFonts();
   mctx = document.createElement('canvas').getContext('2d');
   buildChat();
@@ -457,7 +496,7 @@ async function build() {
   B.sp1 = [[350, 1080, 30, .5], [946, 1070, 24, .567], [968, 1250, 30, .633], [362, 1312, 20, .7]].map(([x, y, r, t0]) => ({ x, y, r, t0, e: el('path', { d: sparkleD(r), fill: '#fff', stroke: '#FFD23F', 'stroke-width': 3.5, filter: 'url(#glow)' }, fx) }));
 
   /* ---- ？？？ ---- */
-  const qs = [[284, 1630, 190, -14, [[0, '#E6FCFF'], [.45, '#3FD8FF'], [1, '#1A86F0']]], [524, 1570, 230, 6, [[0, '#FFE6F3'], [.45, '#FF68AE'], [1, '#E0247A']]], [792, 1510, 275, 15, YELLOW]];
+  const qs = [[284, 1660, 190, -14, [[0, '#E6FCFF'], [.45, '#3FD8FF'], [1, '#1A86F0']]], [524, 1600, 230, 6, [[0, '#FFE6F3'], [.45, '#FF68AE'], [1, '#E0247A']]], [792, 1540, 275, 15, YELLOW]];
   B.qm = HZ(fx, { font: F.round, weight: 900, size: 245, white: 12, outer: 11, outerColor: '#1E2A78', ext: 15, extColor: '#0E1440', gloss: .5,
     chars: qs.map(([x, y, s, r, st], i) => ({ ch: '？', x, y, size: s, rot: r, fillStops: st, t0: C.qmarks[i], drop: 0, r0: -20 })) });
 
@@ -488,19 +527,19 @@ async function build() {
     chars: [...'震惊！！'].map((ch, i) => ({ ch, x: sx[i], y: 1318 + [12, -10, -22, -34][i], rot: [-7, -3, 6, 12][i], t0: C.shock[i], drop: 0, r0: [-18, 14, 20, 24][i] })) });
 
   /* ---- END CARD: 防御性满分 stamp + 翻译成人话：没结论 ---- */
-  B.sp2 = [[166, 1250, 40, 8.86], [990, 1300, 32, 8.93], [958, 1670, 26, 9.0], [112, 1690, 30, 9.07], [960, 470, 34, 9.13], [140, 520, 26, 9.2]].map(([x, y, r, t0]) => ({ x, y, r, t0, e: el('path', { d: sparkleD(r), fill: '#fff', stroke: '#FFD23F', 'stroke-width': 3.5, filter: 'url(#glow)' }, fx) }));
+  B.sp2 = [[150, 1150, 40, .36], [992, 1060, 32, .43], [960, 470, 34, .5], [140, 520, 26, .57], [992, 1650, 28, 2.86], [96, 1730, 30, 2.93]].map(([x, y, r, d]) => [x, y, r, C.stamp2 + d - .3]).map(([x, y, r, t0]) => ({ x, y, r, t0, e: el('path', { d: sparkleD(r), fill: '#fff', stroke: '#FFD23F', 'stroke-width': 3.5, filter: 'url(#glow)' }, fx) }));
   B.stamp2 = el('g', {}, fx); { const st = el('g', { filter: 'url(#rough)' }, B.stamp2);
     el('rect', { x: -320, y: -115, width: 640, height: 230, rx: 34, fill: '#E8283C' }, st);
     el('rect', { x: -302, y: -97, width: 604, height: 194, rx: 24, fill: 'none', stroke: '#fff', 'stroke-width': 5 }, st);
     const a = el('text', { 'font-family': F.latin, 'font-size': 30, fill: '#fff', 'text-anchor': 'middle', 'dominant-baseline': 'central', y: -60, 'letter-spacing': 4 }, st); a.textContent = 'DEFENSE 100/100';
     const b = el('text', { 'font-family': F.heavy, 'font-weight': 700, 'font-size': 112, fill: '#fff', 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 20, 'letter-spacing': 4 }, st); b.textContent = '防御性满分'; }
   { const w1 = measure('翻译成人话：', F.marker, 400, 62), w2 = [...'没结论'].map(ch => measure(ch, F.round, 900, 78)), gap = 6, W = w1 + gap + w2.reduce((a, b) => a + b, 0), x0 = 540 - W / 2;
-    B.sub1G = el('g', {}, fx); const sclip = el('clipPath', { id: 'sclip' }, DEFS); B.sclip = el('rect', { x: x0 - 20, y: 1540, width: 0, height: 120 }, sclip);
-    B.sub1 = HZ(B.sub1G, { font: F.marker, size: 62, anchor: 'start', fill: '#fff', outer: 8, outerColor: '#1E2A78', ext: 6, extColor: '#0E1440', chars: [{ ch: '翻译成人话：', x: x0, y: 1600 }] });
+    B.sub1G = el('g', {}, fx); const sclip = el('clipPath', { id: 'sclip' }, DEFS); B.sclip = el('rect', { x: x0 - 20, y: 1652, width: 0, height: 120 }, sclip);
+    B.sub1 = HZ(B.sub1G, { font: F.marker, size: 62, anchor: 'start', fill: '#fff', outer: 8, outerColor: '#1E2A78', ext: 6, extColor: '#0E1440', chars: [{ ch: '翻译成人话：', x: x0, y: 1712 }] });
     B.sub1.root.setAttribute('clip-path', 'url(#sclip)'); B.sub1.items.forEach(c => X(c.g, c.x, c.y)); B.sw = w1 + 40;
     let x = x0 + w1 + gap;
     B.sub2 = HZ(fx, { font: F.round, weight: 900, size: 78, fillStops: YELLOW, white: 7, outer: 7, outerColor: '#FF3D7F', ext: 9, extColor: '#A3124F', gloss: .5,
-      chars: [...'没结论'].map((ch, i) => { const c = { ch, x: x + w2[i] / 2, y: 1596 + [4, -4, 2][i], rot: [-4, 3, -2][i], t0: C.sub2 + i * FR, drop: 40, r0: [-14, 12, -10][i] }; x += w2[i]; return c; }) }); }
+      chars: [...'没结论'].map((ch, i) => { const c = { ch, x: x + w2[i] / 2, y: 1708 + [4, -4, 2][i], rot: [-4, 3, -2][i], t0: C.sub2 + i * FR, drop: 40, r0: [-14, 12, -10][i] }; x += w2[i]; return c; }) }); }
 
   /* ---- 第 N 个“不能” counter (top right, from the first tick to the end) ---- */
   B.ctr = el('g', {}, fx);
@@ -544,8 +583,8 @@ function dots(e, t) { e.querySelectorAll('.typing i').forEach((d, i) => { d.styl
 window.renderAt = async (t) => {
   { const tf = Math.round(t * 30) / 30;   // cut frames must be weight 0 or 1: no sub-sample may straddle a cut
     for (const c of [C.hero, C.freeze]) { if (tf >= c - 1e-6 && t < c) t = c; else if (tf < c - 1e-6 && t >= c) t = c - 1e-4; } }
-  const fN = Math.round(t * 30), TOUT = C.freeze + 4 * FR;
-  const cam = camAt(t), s = chatScroll(t), inHero = t >= C.hero;
+  const fN = Math.round(t * 30), TOUT = C.freeze + 4 * FR, T = tau(t);   // T: the recording's own clock (stops in freezes)
+  const cam = camAt(t), s = chatScroll(T), inHero = t >= C.hero;
 
   /* recording */
   const scr = $('screen'); scr.style.visibility = inHero ? 'hidden' : 'visible';
@@ -553,22 +592,26 @@ window.renderAt = async (t) => {
   $('content').style.transform = `translateY(${(-s).toFixed(2)}px)`;
   const typing = (t >= C.typing1 && t < C.stream_end) || (t >= C.typing2 && t < C.answer);
   $('hsub').textContent = typing ? '正在输入…' : '在线';
-  msgAt($('u1'), t, C.send1, null, true);
-  msgAt($('ty1'), t, C.typing1, C.stream, false); dots($('ty1'), t);
-  $('a1').style.display = t >= C.stream ? '' : 'none';
-  msgAt($('u2'), t, C.send2, null, true);
-  msgAt($('ty2'), t, C.typing2, C.answer, false); dots($('ty2'), t);
-  msgAt($('a2'), t, C.answer, null, false);
-  if (t >= C.stream) {
-    const n = nAt(t);
+  msgAt($('u1'), T, RC.send1, null, true);
+  msgAt($('ty1'), T, RC.typing1, RC.stream, false); dots($('ty1'), T);
+  $('a1').style.display = T >= RC.stream ? '' : 'none';
+  msgAt($('u2'), T, RC.send2, null, true);
+  msgAt($('ty2'), T, RC.typing2, RC.answer, false); dots($('ty2'), T);
+  msgAt($('a2'), T, RC.answer, null, false);
+  if (T >= RC.stream) {
+    const n = nAt(T);
     for (let i = 0; i < U.length; i++) { const v = i < n; if (U[i].v !== v) { U[i].el.style.visibility = v ? 'visible' : 'hidden'; U[i].v = v; } }
-    $('a1b').style.height = t < C.stream_end ? bubbleH(t).toFixed(1) + 'px' : '';
+    $('a1b').style.height = T < RC.stream_end ? bubbleH(T).toFixed(1) + 'px' : '';
     NEG.forEach((g, k) => { const u = t - C.ticks[k]; g.el.classList.toggle('on', u >= 0); g.el.style.backgroundSize = `${(u >= 0 ? clamp(u / (3 * FR)) * 100 : 0).toFixed(1)}% 100%`; });
     const cur = $('cur'), live = t < C.stream_end + .12 && n > 0; cur.style.display = live ? '' : 'none';
     if (live) { let j = Math.min(n, U.length) - 1; while (j > 0 && U[j].sp) j--; const q = U[j];
       cur.style.left = Math.min(q.l + q.w + 10, SC.txt.w - 24).toFixed(1) + 'px'; cur.style.top = (q.t + q.h / 2).toFixed(1) + 'px';
-      cur.style.transform = `scale(${(.85 + .15 * Math.sin(2 * Math.PI * 3 * t)).toFixed(3)})`; }
+      cur.style.transform = `scale(${(.85 + .15 * Math.sin(2 * Math.PI * 3 * T)).toFixed(3)})`; }
   }
+  // the recording is dimmed under the barrage so the 花字 read first, a step darker while frozen (3-frame ramps)
+  { const tgt = x => { if (x < C.drop || x >= C.hero) return 0; const i = C.freezes.findIndex(([a, e]) => x >= a && x < e);
+      if (i < 0) return x >= C.clear ? 0 : .3; return C.freezes[i][0] === C.stamp1 ? .5 : .44; };
+    $('dim').style.opacity = ((tgt(t) + tgt(t - FR) + tgt(t - 2 * FR)) / 3).toFixed(3); }
 
   /* hero: the exchange cut out as stickers on rays; everything holds still from the freeze */
   $('hero').style.visibility = inHero ? 'visible' : 'hidden';
@@ -588,7 +631,7 @@ window.renderAt = async (t) => {
     const zf = uf >= 0 ? lerp(1, 1.03, E.outCubic(clamp(uf / HOLD))) : 1, K2 = kick(t, C.stamp2, 14, 10, 13), st = t >= C.stamp2;
     $('bg').style.visibility = uf >= 0 ? 'visible' : 'hidden';
     shot.style.filter = uf >= 0 ? `saturate(${lerp(.75, 1, clamp(p)).toFixed(3)})` : 'none';
-    const sc = lerp(zf, .8, p), rot = lerp(0, -3, p) + (st ? K2.r * 12 : 0), ty = lerp(0, 110, p);
+    const sc = lerp(zf, .7, p), rot = lerp(0, -3, p) + (st ? K2.r * 12 : 0), ty = lerp(0, -30, p);
     cw.style.transform = uf >= 0 ? `translate(${st ? K2.x : 0}px,${ty + (st ? K2.y : 0)}px) translate(540px,960px) rotate(${rot}deg) scale(${sc}) translate(-540px,-960px)` : 'none';
     const T = 300 * e, Bm = 600 * e, L = 60 * e, b = 30 * e;
     shot.style.clipPath = p > 0 ? `inset(${T}px ${L}px ${Bm}px ${L}px round ${30 * e}px)` : 'none';
@@ -597,7 +640,7 @@ window.renderAt = async (t) => {
     bgPat.setAttribute('patternTransform', `rotate(-35) translate(${(t * 36) % 92} 0)`); }
 
   /* fx layer follows the impacts */
-  const FK = t >= C.drop && t < C.clear ? addK(kick(t, C.drop, 6, 10, 13), kick(t, C.max, 10, 10, 13), kick(t, C.stamp1, 14, 9, 12)) : t >= C.hero && t < C.freeze ? kick(t, C.hero, 22, 7, 11) : { x: 0, y: 0, r: 0 };
+  const FK = t >= C.drop && t < C.clear ? impacts(t) : t >= C.hero && t < C.freeze ? kick(t, C.hero, 22, 7, 11) : { x: 0, y: 0, r: 0 };
   const off = { x: FK.x * .6, y: FK.y * .6 };
 
   // 好耶！: pop-in, one squash-and-hop on the 1.0 beat, pop-out as the reply starts
@@ -626,7 +669,7 @@ window.renderAt = async (t) => {
   // ？？？ hop on the beat
   for (const [i, c] of B.qm.items.entries()) {
     const f = charXf(t, c, { wig: 0, bob: 0, t1: C.clear + i * FR }); if (!f) { show(c.g, false); continue; } show(c.g, true);
-    const u = t - c.t0, ph = ((t - 4.75 - i * .083) / .5 % 1 + 1) % 1, on = clamp((u - .2) / .15);
+    const u = t - c.t0, ph = ((t - C.qmarks[0] - .25 - i * .083) / .5 % 1 + 1) % 1, on = clamp((u - .2) / .15);
     const hop = on * 46 * 4 * ph * (1 - ph), sq = on * Math.exp(-Math.pow(Math.min(ph, 1 - ph) / .07, 2));
     X(c.g, c.x + off.x, c.y - hop + off.y, c.rot + f.r + on * 5 * Math.sin(2 * Math.PI * ph), f.s * (1 + .12 * sq), f.s * (1 - .14 * sq));
   }
@@ -664,23 +707,25 @@ window.renderAt = async (t) => {
   { const u = t - (C.stamp2 - .13), v = u >= 0; show(B.stamp2, v);
     if (v) { let sc, o = 1; if (t < C.stamp2) { const k = u / .13; sc = lerp(2.4, 1, E.inQuad(k)); o = clamp(k * 2.2); } else { const w = t - C.stamp2; sc = 1 - .09 * Math.exp(-w * 16) * Math.cos(w * 44); }
       const K2 = kick(t, C.stamp2, 14, 10, 13);
-      B.stamp2.setAttribute('opacity', o.toFixed(3)); X(B.stamp2, 590 + K2.x * .5, 1340 + K2.y * .5, -7 + (t < C.stamp2 ? -9 * (1 - u / .13) : 0) + .7 * Math.sin(t * 2.3), sc); } }
+      B.stamp2.setAttribute('opacity', o.toFixed(3)); X(B.stamp2, 600 + K2.x * .5, 1148 + K2.y * .5, -7 + (t < C.stamp2 ? -9 * (1 - u / .13) : 0) + .7 * Math.sin(t * 2.3), sc * .9); } }
   { const u = t - C.sub1, v = u >= 0; show(B.sub1G, v);
     if (v) { B.sclip.setAttribute('width', (clamp((Math.floor(u * 30) + 1) / 6) * B.sw).toFixed(1));
-      B.sub1G.setAttribute('transform', `rotate(${(-2 + .6 * Math.sin(2 * Math.PI * .8 * t)).toFixed(2)} 540 1600)`); } }
+      B.sub1G.setAttribute('transform', `rotate(${(-2 + .6 * Math.sin(2 * Math.PI * .8 * t)).toFixed(2)} 540 1712)`); } }
   driveHZ(t, B.sub2, { wig: 3, bob: 3, wf: 1.3 });
 
-  // counter: one pop per counted 不能, the 14th turns red, shakes and sprouts emphasis marks
-  { const tv = C.ticks.map(k => k + FR), n = tv.filter(k => t >= k).length, v = n > 0; disp(B.ctr, v);
-    if (v) { const ut = t - tv[n - 1], u0 = t - tv[0], max = n === C.ticks.length, um = t - tv[tv.length - 1];
+  // counter: one pop per counted 不能, the 14th turns red, shakes and sprouts emphasis marks; the reviewer's nitpick makes 15
+  { const tv = [...C.ticks, C.tick15].map(k => k + FR), n = tv.filter(k => t >= k).length, v = n > 0; disp(B.ctr, v);
+    if (v) { const ut = t - tv[n - 1], u0 = t - tv[0], max = n >= C.ticks.length, over = n > C.ticks.length, um = t - tv[C.ticks.length - 1];
       if (B.numN !== n) { B.num.texts.forEach(e => { e.textContent = String(n); }); B.numN = n; }
       B.num.fillEl.setAttribute('fill', max ? B.numR : B.numY);
-      const ns = lerp(max ? 2.1 : 1.7, max ? 1.12 : 1, spring(ut, .45, 26)), nr = (n % 2 ? 1 : -1) * 10 * (1 - spring(ut, .45, 20));
-      X(B.num.g, B.numX, 8, nr + (max ? 2.5 * Math.sin(2 * Math.PI * 1.7 * t) : 0), ns);
+      const ns = lerp(over ? 2.6 : max ? 2.1 : 1.7, over ? 1.22 : max ? 1.12 : 1, spring(ut, .45, 26)), nr = (n % 2 ? 1 : -1) * 10 * (1 - spring(ut, .45, 20));
+      const buzz = over ? 2.5 * Math.sin(2 * Math.PI * 9 * t) : 0;   // 15 keeps vibrating against the end stop
+      X(B.num.g, B.numX + buzz, 8, nr + (max ? 2.5 * Math.sin(2 * Math.PI * 1.7 * t) : 0), ns);
       const ps = 1 + .07 * Math.exp(-ut * 14) * Math.cos(ut * 38) + (max ? .05 * Math.exp(-um * 8) * Math.cos(um * 30) : 0);
-      const sh = max ? kick(t, tv[tv.length - 1], 12, 9, 14) : { x: 0, y: 0, r: 0 }, enter = spring(u0, .5, 22);
+      const sh = over ? kick(t, tv[n - 1], 18, 7, 14) : max ? kick(t, tv[C.ticks.length - 1], 12, 9, 14) : { x: 0, y: 0, r: 0 }, enter = spring(u0, .5, 22);
       X(B.ctr, 790 + sh.x, 310 + sh.y + 3 * Math.sin(2 * Math.PI * .9 * t), 3 - 12 * (1 - spring(u0, .45, 18)) + 1.2 * Math.sin(2 * Math.PI * .7 * t), enter * ps);
-      B.ctrFlash.setAttribute('opacity', (max ? .7 * Math.exp(-um * 10) : .25 * Math.exp(-ut * 22)).toFixed(3));
+      B.ctrFlash.setAttribute('fill', over ? '#FF2E4D' : '#fff');
+      B.ctrFlash.setAttribute('opacity', (over ? .85 * Math.exp(-ut * 6) : max ? .7 * Math.exp(-um * 10) : .25 * Math.exp(-ut * 22)).toFixed(3));
       show(B.marks, max); if (max) B.marks.setAttribute('transform', `translate(${B.numX * (1 - spring(um, .45, 26))} 0) scale(${spring(um, .45, 26).toFixed(4)})`); } }
 
   // badge (persistent) with a tiny idle bob; fly-in from centre on the first 10 frames
@@ -693,8 +738,18 @@ window.renderAt = async (t) => {
     B.bcl.forEach((u, i) => { if (!fast && i) { show(u, false); return; } show(u, true);
       const v = fast ? bx(tf + (i / 47 - .5) * .5 * FR) : bx(t); X(u, v[0], v[1], v[2], v[3]); u.setAttribute('opacity', fast ? (1 / (i + 1)).toFixed(4) : '1'); }); }
 
-  // flashes, vignette, grain
-  let fl = fN === Math.round(C.hero * 30) ? 1 : fN === Math.round(C.freeze * 30) ? .85 : fN === Math.ceil(C.max * 30) ? .25 : fN === Math.round(C.stamp1 * 30) ? .2 : 0;
+  // end egg: the reviewer's note slides up under the card, types itself out, then its nitpick gets the marker (= 不能 No. 15)
+  { const egg = $('egg'), u = t - C.egg, v = u >= 0; egg.style.visibility = v ? 'visible' : 'hidden';
+    if (v) { const sc = B.eg.s * lerp(.86, 1, spring(u, .5, 22)), y = 1314 + 150 * (1 - spring(u, .55, 20)) + 3 * Math.sin(2 * Math.PI * .7 * t), r = -1.5 + 5 * (1 - spring(u, .45, 18)) + .4 * Math.sin(2 * Math.PI * .6 * t);
+      egg.style.opacity = clamp(u / (3 * FR)).toFixed(3);
+      egg.style.transform = `translate(${(60 + B.eg.w * B.eg.s / 2).toFixed(1)}px,${(y + B.eg.h * B.eg.s / 2).toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${sc.toFixed(4)}) translate(${(-B.eg.w / 2).toFixed(1)}px,${(-B.eg.h / 2).toFixed(1)}px)`;
+      const n = Math.floor(EU.length * clamp((t - C.egg_text[0]) / (C.egg_text[1] - C.egg_text[0])) + 1e-6);
+      EU.forEach((e, i) => { e.style.visibility = i < n ? 'visible' : 'hidden'; });
+      const uk = t - C.tick15; B.egNeg.classList.toggle('on', uk >= 0); B.egNeg.style.backgroundSize = `${(uk >= 0 ? clamp(uk / (3 * FR)) * 100 : 0).toFixed(1)}% 100%`; } }
+
+  // flashes (every 定格 opens on one), vignette, grain
+  const fz0 = C.freezes.some(([a]) => fN === Math.round(a * 30) && a !== C.stamp1);
+  let fl = fN === Math.round(C.hero * 30) ? 1 : fN === Math.round(C.freeze * 30) ? .85 : fN === Math.round(C.stamp1 * 30) ? .4 : fz0 ? .3 : 0;
   $('flash').style.opacity = fl.toFixed(3);
   $('vig').style.opacity = t >= C.hero ? 0 : 1;
   const fi = Math.round(t * 30); $('grain').style.backgroundPosition = `${Math.floor(h1(fi) * 2048)}px ${Math.floor(h1(fi + 777) * 2048)}px`;
